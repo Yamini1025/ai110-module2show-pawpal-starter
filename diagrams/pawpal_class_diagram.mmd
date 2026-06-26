@@ -1,0 +1,50 @@
+classDiagram
+    class Owner {
+        +str name
+        +str contact_info
+        +list[Pet] pets
+        +dict preferences
+        +int available_minutes_per_day
+        +add_pet(pet: Pet)
+        +remove_pet(pet: Pet)
+        +get_constraints() dict
+    }
+
+    class Pet {
+        +str name
+        +str species
+        +str breed
+        +int age
+        +list[Task] tasks
+        +add_task(task: Task)
+        +remove_task(task: Task)
+        +get_task_list() list[Task]
+    }
+
+    class Task {
+        +str title
+        +str description
+        +int duration_minutes
+        +str priority
+        +str category
+        +bool required
+        +get_priority_score() int
+        +to_summary() str
+    }
+
+    class Scheduler {
+        +Owner owner
+        +list[Task] task_pool
+        +int day_start
+        +int day_end
+        +generate_daily_plan() DailyPlan
+        +sort_tasks_by_priority()
+        +filter_tasks_by_time()
+        +explain_plan(plan: DailyPlan) str
+    }
+
+    Owner "1" o-- "*" Pet : owns
+    Pet "1" o-- "*" Task : has
+    Scheduler "1" o-- "1" Owner : uses
+    Scheduler "1" o-- "*" Task : schedules
+    Scheduler --> DailyPlan : generates
