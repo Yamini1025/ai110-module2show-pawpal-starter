@@ -53,6 +53,10 @@ Paste a sample of your app's CLI or Streamlit output here so a reader can see wh
 #   09:00 — Feeding (10 min) [priority: high]
 #   ...
 ```
+Daily plan:
+- 08:00 - 08:45: Morning walk
+- 08:45 - 08:55: Medication reminder
+- 08:55 - 09:25: Play session
 
 ## 🧪 Testing PawPal+
 

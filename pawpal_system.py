@@ -10,6 +10,7 @@ class Owner:
         preferences: Optional[Dict[str, str]] = None,
         available_minutes_per_day: int = 0,
     ):
+        """Create an owner with contact and availability details."""
         self.name = name
         self.contact_info = contact_info
         self.preferences = preferences or {}
@@ -17,13 +18,29 @@ class Owner:
         self.pets: List[Pet] = []
 
     def add_pet(self, pet: "Pet") -> None:
-        pass
+        """Add a pet to the owner if it is not already present."""
+        if pet not in self.pets:
+            self.pets.append(pet)
 
     def remove_pet(self, pet: "Pet") -> None:
-        pass
+        """Remove a pet from the owner if it exists."""
+        if pet in self.pets:
+            self.pets.remove(pet)
+
+    def get_all_tasks(self) -> List["Task"]:
+        """Return a combined list of tasks from all owned pets."""
+        tasks: List[Task] = []
+        for pet in self.pets:
+            tasks.extend(pet.get_task_list())
+        return tasks
 
     def get_constraints(self) -> Dict[str, object]:
-        pass
+        """Return scheduling constraints and owner preferences."""
+        return {
+            "contact_info": self.contact_info,
+            "preferences": self.preferences,
+            "available_minutes_per_day": self.available_minutes_per_day,
+        }
 
 
 @dataclass
@@ -35,13 +52,18 @@ class Pet:
     tasks: List["Task"] = field(default_factory=list)
 
     def add_task(self, task: "Task") -> None:
-        pass
+        """Add a task to the pet if it is not already assigned."""
+        if task not in self.tasks:
+            self.tasks.append(task)
 
     def remove_task(self, task: "Task") -> None:
-        pass
+        """Remove a task from the pet if it exists."""
+        if task in self.tasks:
+            self.tasks.remove(task)
 
     def get_task_list(self) -> List["Task"]:
-        pass
+        """Return a copy of the pet's current task list."""
+        return list(self.tasks)
 
 
 @dataclass
@@ -52,12 +74,50 @@ class Task:
     priority: str = "low"
     category: Optional[str] = None
     required: bool = False
+    completed: bool = False
+
+    def mark_complete(self) -> None:
+        """Mark this task as completed."""
+        self.completed = True
 
     def get_priority_score(self) -> int:
-        pass
+        """Calculate a numeric score for this task's priority."""
+        priority_map = {
+            "high": 3,
+            "medium": 2,
+            "low": 1,
+        }
+        score = priority_map.get(self.priority.lower(), 1)
+        if self.required:
+            score += 1
+        return score
 
     def to_summary(self) -> str:
-        pass
+        """Return a one-line summary describing the task."""
+        status = "Done" if self.completed else "Pending"
+        return f"{self.title} ({self.priority.capitalize()} priority, {self.duration_minutes}m) - {status}"
+
+
+@dataclass
+class ScheduledTask:
+    task: Task
+    start_time: str
+    end_time: str
+
+    def summary(self) -> str:
+        """Return a formatted summary of the scheduled task."""
+        return f"{self.start_time} - {self.end_time}: {self.task.title}"
+
+
+@dataclass
+class DailyPlan:
+    scheduled_tasks: List[ScheduledTask] = field(default_factory=list)
+
+    def get_summary(self) -> str:
+        """Return a text summary of the daily schedule."""
+        if not self.scheduled_tasks:
+            return "No tasks scheduled for today."
+        return "\n".join(task.summary() for task in self.scheduled_tasks)
 
 
 class Scheduler:
@@ -68,23 +128,75 @@ class Scheduler:
         day_start: int = 8,
         day_end: int = 18,
     ):
+        """Initialize the scheduler with owner data and daily time boundaries."""
         self.owner = owner
         self.task_pool = task_pool or []
         self.day_start = day_start
         self.day_end = day_end
 
+    def _get_task_pool(self) -> List[Task]:
+        """Return the task pool from the scheduler or the owner if none is provided."""
+        if self.task_pool:
+            return list(self.task_pool)
+        return self.owner.get_all_tasks()
+
     def generate_daily_plan(self) -> "DailyPlan":
-        pass
+        """Generate a daily schedule by assigning tasks into available time slots."""
+        available_start = self.day_start * 60
+        available_end = self.day_end * 60
+        remaining_minutes = self.owner.available_minutes_per_day or (available_end - available_start)
+        current_time = available_start
+
+        tasks = self._get_task_pool()
+        self.task_pool = tasks
+        self.sort_tasks_by_priority()
+        self.filter_tasks_by_time()
+
+        scheduled_tasks: List[ScheduledTask] = []
+        for task in self.task_pool:
+            if task.duration_minutes <= 0:
+                continue
+            if current_time + task.duration_minutes > available_end:
+                continue
+            if task.duration_minutes > remaining_minutes:
+                continue
+
+            start_time = self._format_time(current_time)
+            end_time = self._format_time(current_time + task.duration_minutes)
+            scheduled_tasks.append(ScheduledTask(task=task, start_time=start_time, end_time=end_time))
+
+            current_time += task.duration_minutes
+            remaining_minutes -= task.duration_minutes
+            if current_time >= available_end or remaining_minutes <= 0:
+                break
+
+        return DailyPlan(scheduled_tasks=scheduled_tasks)
 
     def sort_tasks_by_priority(self) -> None:
-        pass
+        """Sort the current task pool in descending priority order."""
+        self.task_pool.sort(key=lambda task: task.get_priority_score(), reverse=True)
 
     def filter_tasks_by_time(self) -> None:
-        pass
+        """Remove tasks that cannot fit within the scheduler's daily window."""
+        max_minutes = (self.day_end - self.day_start) * 60
+        self.task_pool = [
+            task
+            for task in self.task_pool
+            if 0 < task.duration_minutes <= max_minutes
+        ]
 
     def explain_plan(self, plan: "DailyPlan") -> str:
-        pass
+        """Return a readable explanation of the daily plan."""
+        if not plan.scheduled_tasks:
+            return "The scheduler could not fit any tasks into today’s available time."
+        lines = ["Daily plan:"]
+        for scheduled in plan.scheduled_tasks:
+            lines.append(f"- {scheduled.summary()}")
+        return "\n".join(lines)
 
-
-class DailyPlan:
-    pass
+    @staticmethod
+    def _format_time(minutes: int) -> str:
+        """Format integer minutes into HH:MM text."""
+        hour = minutes // 60
+        minute = minutes % 60
+        return f"{hour:02d}:{minute:02d}"
