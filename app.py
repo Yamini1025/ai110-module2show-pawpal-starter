@@ -1,4 +1,24 @@
 import streamlit as st
+from pawpal_system import Owner, Pet, Task, Scheduler
+
+# Ensure owner object exists in session_state
+if "owner" not in st.session_state:
+    st.session_state["owner"] = Owner(name="Jordan", contact_info="jordan@example.com", available_minutes_per_day=240)
+
+owner: Owner = st.session_state["owner"]
+
+st.write(f"Owner: {owner.name}")
+if st.button("Add example pet & tasks"):
+    pet = Pet(name="Mochi", species="cat")
+    owner.add_pet(pet)
+    pet.add_task(Task(title="Play", duration_minutes=20, priority="low"))
+    pet.add_task(Task(title="Groom", duration_minutes=15, priority="medium"))
+    st.success("Added pet and tasks to owner in session_state")
+
+if st.button("Show schedule"):
+    scheduler = Scheduler(owner=owner, day_start=8, day_end=18)
+    plan = scheduler.generate_daily_plan()
+    st.text(scheduler.explain_plan(plan))
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -74,15 +94,41 @@ st.subheader("Build Schedule")
 st.caption("This button should call your scheduling logic once you implement it.")
 
 if st.button("Generate schedule"):
-    st.warning(
-        "Not implemented yet. Next step: create your scheduling logic (classes/functions) and call it here."
+    # Use the Owner stored in session_state to build a schedule
+    owner = st.session_state.get("owner")
+    if not owner:
+        st.error("No owner found in session; please create or load an owner first.")
+    else:
+        scheduler = Scheduler(owner=owner, day_start=8, day_end=18)
+        plan = scheduler.generate_daily_plan()
+        st.text(scheduler.explain_plan(plan))
+    
+st.subheader("Add a Pet")
+
+# assumes `owner` is already in st.session_state (see earlier example)
+with st.form("add_pet_form"):
+    new_name = st.text_input("Pet name", value="")
+    new_species = st.selectbox("Species", ["dog", "cat", "other"])
+    new_breed = st.text_input("Breed (optional)", value="")
+    new_age = st.number_input("Age", min_value=0, max_value=50, value=1)
+    submitted = st.form_submit_button("Add Pet")
+
+if submitted:
+    pet = Pet(
+        name=new_name or "Unnamed",
+        species=new_species,
+        breed=new_breed or None,
+        age=int(new_age),
     )
-    st.markdown(
-        """
-Suggested approach:
-1. Design your UML (draft).
-2. Create class stubs (no logic).
-3. Implement scheduling behavior.
-4. Connect your scheduler here and display results.
-"""
-    )
+    owner.add_pet(pet)
+    st.success(f"Added pet: {pet.name}")
+
+st.markdown("**Current pets**")
+if owner.pets:
+    pets_table = [
+        {"name": p.name, "species": p.species, "breed": p.breed or "", "age": p.age}
+        for p in owner.pets
+    ]
+    st.table(pets_table)
+else:
+    st.info("No pets yet. Use the form above to add one.")

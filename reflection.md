@@ -36,10 +36,17 @@ One key change was clarifying the data flow between components. Initially, tasks
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
 
+The scheduler considers time availability, task priority, task duration, and optional preferred start time. It also considers whether tasks are required or optional. Priority and required tasks are weighted more heavily so that important care activities like feeding and medication are scheduled first. Time constraints are the strictest limitation, because tasks cannot be scheduled if they exceed the available daily window.
+
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+
+  In this version of PawPal+, I chose to keep the scheduling logic simple rather than trying to make it perfectly accurate for every situation. For example, I used basic sorting rules for preferred start time, priority, and duration instead of building a full time-window conflict solver. That means the scheduler is easier to understand and maintain, but it can miss some complex edge cases.
+
 - Why is that tradeoff reasonable for this scenario?
+
+  This tradeoff is reasonable because the project is meant to be a beginner-friendly pet care planner. Simple rules still give useful schedules and let me add features like recurrence and conflict warnings without making the code too hard to follow. A clear and readable design is more valuable here than a very complicated optimization engine.
 
 ---
 
@@ -50,10 +57,14 @@ One key change was clarifying the data flow between components. Initially, tasks
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 - What kinds of prompts or questions were most helpful?
 
+I used AI throughout the project for system design, debugging, and implementing scheduling logic. In the early phases, I used it to generate a UML diagram and class structure. Later, I used it to refine my Scheduler logic, especially for sorting, filtering, and recurrence handling. The most helpful prompts were those that asked for small, incremental changes rather than full rewrites, such as “implement sorting by preferred time” or “add lightweight conflict detection.”
+
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 - How did you evaluate or verify what the AI suggested?
+
+One moment where I did not accept the AI suggestion directly was during the scheduling design. The AI initially suggested a more complex scheduling system with full time-window optimization, but I chose a simpler sequential scheduler instead. I evaluated this by comparing readability and scope of the assignment. Since the goal was a beginner-friendly system, I verified that my simpler approach still met all required features through CLI testing and manual output checks.
 
 ---
 
@@ -63,6 +74,8 @@ One key change was clarifying the data flow between components. Initially, tasks
 
 - What behaviors did you test?
 - Why were these tests important?
+
+I tested sorting behavior, filtering by completion status, filtering by pet name, recurring task generation, and conflict detection. These tests were important because they validated that the scheduler logic worked correctly before integrating with the Streamlit UI. I also tested edge cases like multiple tasks sharing the same preferred start time and verifying that recurring tasks generated new instances correctly.
 
 **b. Confidence**
 

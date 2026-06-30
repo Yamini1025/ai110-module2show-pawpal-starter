@@ -1,8 +1,11 @@
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 from typing import List, Dict, Optional
 
 
 class Owner:
+    """Store owner details, preferences, availability, and pets."""
+
     def __init__(
         self,
         name: str,
@@ -45,6 +48,8 @@ class Owner:
 
 @dataclass
 class Pet:
+    """Represent a pet and the tasks assigned to that pet."""
+
     name: str
     species: str
     breed: Optional[str] = None
@@ -54,6 +59,7 @@ class Pet:
     def add_task(self, task: "Task") -> None:
         """Add a task to the pet if it is not already assigned."""
         if task not in self.tasks:
+            task.pet_name = self.name
             self.tasks.append(task)
 
     def remove_task(self, task: "Task") -> None:
@@ -68,6 +74,8 @@ class Pet:
 
 @dataclass
 class Task:
+    """Describe a pet care task, including timing and recurrence data."""
+
     title: str
     description: Optional[str] = None
     duration_minutes: int = 0
@@ -75,10 +83,46 @@ class Task:
     category: Optional[str] = None
     required: bool = False
     completed: bool = False
+    pet_name: Optional[str] = None
+    preferred_start_minutes: Optional[int] = None
+    recurrence: Optional[str] = None
+    scheduled_date: Optional[date] = None
 
-    def mark_complete(self) -> None:
-        """Mark this task as completed."""
+    def mark_complete(self) -> Optional["Task"]:
+        """Mark this task as completed.
+
+        If the task has a recurrence rule, create the next occurrence.
+        """
         self.completed = True
+        days = self._recurrence_days()
+        if not self.recurrence or days is None:
+            return None
+
+        next_date = self.scheduled_date or date.today()
+        next_date = next_date + timedelta(days=days)
+
+        next_task = Task(
+            title=self.title,
+            description=self.description,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            category=self.category,
+            required=self.required,
+            recurrence=self.recurrence,
+            scheduled_date=next_date,
+        )
+        next_task.pet_name = self.pet_name
+        return next_task
+
+    def _recurrence_days(self) -> Optional[int]:
+        """Convert a recurrence label into a number of days."""
+        if not self.recurrence:
+            return None
+        recurrence_map = {
+            "daily": 1,
+            "weekly": 7,
+        }
+        return recurrence_map.get(self.recurrence.lower())
 
     def get_priority_score(self) -> int:
         """Calculate a numeric score for this task's priority."""
@@ -100,6 +144,8 @@ class Task:
 
 @dataclass
 class ScheduledTask:
+    """Wrap a task with its planned start and end times."""
+
     task: Task
     start_time: str
     end_time: str
@@ -111,6 +157,8 @@ class ScheduledTask:
 
 @dataclass
 class DailyPlan:
+    """Hold the list of scheduled tasks for one day."""
+
     scheduled_tasks: List[ScheduledTask] = field(default_factory=list)
 
     def get_summary(self) -> str:
@@ -121,6 +169,8 @@ class DailyPlan:
 
 
 class Scheduler:
+    """Build and manage a daily task schedule for an owner."""
+
     def __init__(
         self,
         owner: Owner,
@@ -149,7 +199,9 @@ class Scheduler:
 
         tasks = self._get_task_pool()
         self.task_pool = tasks
+        self.filter_tasks_by_completion(completed=False)
         self.sort_tasks_by_priority()
+        self.sort_by_time()
         self.filter_tasks_by_time()
 
         scheduled_tasks: List[ScheduledTask] = []
@@ -175,6 +227,64 @@ class Scheduler:
     def sort_tasks_by_priority(self) -> None:
         """Sort the current task pool in descending priority order."""
         self.task_pool.sort(key=lambda task: task.get_priority_score(), reverse=True)
+
+    def sort_by_time(self) -> None:
+        """Sort tasks by preferred start time, then by priority and duration."""
+        self.task_pool.sort(
+            key=lambda task: (
+                task.preferred_start_minutes
+                if task.preferred_start_minutes is not None
+                else float("inf"),
+                -task.get_priority_score(),
+                task.duration_minutes,
+            )
+        )
+
+    def filter_tasks_by_completion(self, completed: bool = False) -> None:
+        """Keep only tasks matching the requested completion status."""
+        self.task_pool = [
+            task
+            for task in self.task_pool
+            if task.completed == completed
+        ]
+
+    def filter_tasks_by_pet_name(self, pet_name: str) -> None:
+        """Keep only tasks that belong to a pet with the given name."""
+        self.task_pool = [
+            task
+            for task in self.task_pool
+            if task.pet_name and task.pet_name.lower() == pet_name.lower()
+        ]
+
+    def detect_conflicts(self) -> List[str]:
+        """Return warnings for lightweight scheduling conflicts.
+
+        Detects same-pet tasks that share the same preferred start time
+        or whose preferred time windows overlap.
+        """
+        tasks = [
+            task
+            for task in self._get_task_pool()
+            if task.pet_name and task.preferred_start_minutes is not None
+        ]
+        tasks.sort(key=lambda task: (task.pet_name.lower(), task.preferred_start_minutes))
+
+        warnings: List[str] = []
+        for index in range(len(tasks)):
+            task = tasks[index]
+            for next_task in tasks[index + 1 :]:
+                if task.pet_name.lower() != next_task.pet_name.lower():
+                    break
+                if task.preferred_start_minutes == next_task.preferred_start_minutes:
+                    warnings.append(
+                        f"Conflict: '{task.title}' and '{next_task.title}' for {task.pet_name} share the same preferred start time ({task.preferred_start_minutes})."
+                    )
+                task_end = task.preferred_start_minutes + task.duration_minutes
+                if task_end > next_task.preferred_start_minutes:
+                    warnings.append(
+                        f"Conflict: '{task.title}' overlaps '{next_task.title}' for {task.pet_name}."
+                    )
+        return warnings
 
     def filter_tasks_by_time(self) -> None:
         """Remove tasks that cannot fit within the scheduler's daily window."""
