@@ -60,19 +60,34 @@ Daily plan:
 
 ## 🧪 Testing PawPal+
 
+Run the automated tests with:
+
 ```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
+python -m pytest
 ```
 
-Sample test output:
+The tests verify the core scheduling behaviors of PawPal+, including:
 
+- sorting tasks correctly with `Scheduler.sort_by_time()`
+- filtering pending versus completed tasks
+- filtering tasks by pet name
+- creating the next recurring task with `Task.mark_complete()`
+- detecting scheduling conflicts with `Scheduler.detect_conflicts()`
+- generating a daily schedule plan with `Scheduler.generate_daily_plan()`
+
+These tests are important because they help confirm that the scheduler behaves reliably for everyday pet-care scenarios. They catch regressions early, especially in task ordering, recurrence handling, and conflict detection, which are central to the app’s usefulness.
+
+Sample pytest output:
+
+```text
+# Paste your successful pytest output here
 ```
-# Paste your pytest output here
-```
+6 passed in 0.03s
+
+### Confidence level
+★★★★★
+
+The current test suite gives strong confidence that the core scheduling logic works as intended for the main happy paths and common edge cases covered in the project.
 
 ## 📐 Smarter Scheduling
 
@@ -96,10 +111,11 @@ This project includes a few simple scheduling features that help PawPal+ choose 
 
 Describe your app in numbered steps so a reader can follow along without watching a video:
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+1. Open the PawPal+ Streamlit application.
+2. Enter the owner's information and create a pet profile.
+3. Add pet care tasks with durations and priorities.
+4. Generate a daily schedule.
+5. Review the generated schedule and any conflict warnings.
+
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
